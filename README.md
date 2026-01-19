@@ -324,3 +324,75 @@ sudo apt-get install tmux
 - 多執行緒併發
 - semaphore 同步與 race condition 處理
 
+### server2.c（Process + Shared Memory 版本）
+
+`server2.c` 是同一個 ATM 題目的另一種經典 OS 作法：
+
+- **並行模型：process-per-connection**
+  - 主行程 `accept()` 後立刻 `fork()`
+  - **child process** 負責處理該 client 的指令（讀一次指令、執行 `times` 次）
+  - **parent process** 關閉連線 fd、回到 `accept()` 迴圈
+
+#### 為什麼要 shared memory？
+
+跟 thread 版本不同：
+- Thread 共享同一個位址空間，所以全域變數 `balance` 天然共享。
+- Process `fork()` 後各自有獨立位址空間（預設 **不共享**，靠 **copy-on-write** 讓一開始看起來「像共享」，但寫入後就分離）。
+
+因此 `server2.c` 用 **System V shared memory** 把「帳戶餘額」變成 kernel 管理的共享區段：
+
+- `shmget(SHM_KEY, SHM_SIZE, IPC_CREAT | 0666)`：建立/取得共享記憶體段
+- `shmat(shm_id, NULL, 0)`：映射到每個 process 的 user-space 位址空間
+- `balance_shm` 指向共享的 `int`，child/parent（以及多個 child）都看得到同一份餘額
+
+> OS 觀點：shared memory 是 IPC 中「最快的一種」，因為資料不需要在 process 間複製；
+> 代價是「同步」要自己做（不然一樣會 race）。
+
+#### 為什麼還要 semaphore？
+
+即使 `balance` 放到 shared memory，多個 child process 同時更新仍會出現 race condition。
+
+`server2.c` 用 **System V binary semaphore** 做跨 process 的 mutual exclusion：
+
+- `semget(semKey, 1, IPC_CREAT | IPC_EXCL | 0666)` 建立 semaphore
+- `semctl(SETVAL)` 設初值為 1
+- `P()` / `V()` 透過 `semop()` 以原子方式做 lock/unlock
+
+程式的 critical section 在這裡（每次存/提款）：
+
+- `P(sem)` → 更新 `*balance_shm` → `V(sem)`
+
+#### process 與 fd 的關係（很重要）
+
+`fork()` 後 **檔案描述子會被複製**（更精確說：父子各自的 fd table entry 指向同一個 open file description），所以要做正確的關閉：
+
+- child：`close(listenFd)`（child 不需要 listen socket）
+- parent：`close(*clientFd)`（parent 不處理該連線）
+
+這能避免：
+- listen socket 被多個 process 持有造成關閉不乾淨
+- 連線 fd 因為父子都握著而延後 EOF/資源釋放
+
+#### Zombie process 處理
+
+child 結束後，如果 parent 不 `wait()`，會產生 zombie。
+`server2.c` 註冊 `SIGCHLD` handler：
+
+- `waitpid(-1, NULL, WNOHANG)` 迴圈 reaping 已結束的 child
+
+#### Ctrl+C 清理（Semaphore + Shared Memory）
+
+`SIGINT` handler `cleanSocketSemaphore()` 會做：
+
+- `semctl(sem, 0, IPC_RMID, ...)` 移除 semaphore
+- `shmdt(balance_shm)` detach
+- `shmctl(shm_id, IPC_RMID, ...)` 移除 shared memory
+
+如果程式異常退出導致殘留，可以用：
+
+```bash
+ipcs -s   # semaphore
+ipcs -m   # shared memory
+ipcrm -s <semid>
+ipcrm -m <shmid>
+
