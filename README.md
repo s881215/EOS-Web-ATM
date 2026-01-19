@@ -320,7 +320,7 @@ sudo apt-get install tmux
 
 ---
 
-## 背景/來源
+## 背景 / 來源
 
 本專案依據嵌入式作業系統課程中實驗之規格完成，目標是練習：
 - Linux socket programming
