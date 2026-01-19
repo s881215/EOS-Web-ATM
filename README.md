@@ -2,12 +2,11 @@
 
 > **TCP Web ATM（多客戶端並行 + System V Semaphore 防止 Race Condition）**
 
-這個專案是依據「Lab 6 Web ATM」規格實作的 Linux socket 練習：
+此專案主要練習多執行緒對於共享資料的存取，以及如何避免Race Condition：
 - **Server**：提供一個「只有一個帳戶」的 ATM 服務，多個 client 可以同時連線並執行 **deposit / withdraw**。
 - **Client**：送出一次指令（動作 / 金額 / 次數），由 server 反覆執行並在每次操作後印出餘額。
 - **重點**：在多執行緒（multi-threading）同時存取共享資料（帳戶餘額）時，使用 **System V semaphore** 保護 critical section，避免 **race condition**。
 
-> Repo 名稱建議：`tcp-atm-semaphore-lab`（強調 TCP + ATM + semaphore 的 Lab 性質，GitHub 上也好搜尋）。
 
 ---
 
@@ -46,8 +45,7 @@
 ├── server.c              # TCP server：accept 後 per-connection thread 處理
 ├── client.c              # TCP client：送出 deposit/withdraw amount times
 ├── Makefile              # 編譯 client/server
-├── demo.sh               # tmux demo：一次跑 server + 多 client 併發
-└── Lab 6 Web ATM.html     # 作業規格（HackMD 匯出）
+└── demo.sh               # tmux demo：一次跑 server + 多 client 併發
 ```
 
 ---
@@ -222,7 +220,7 @@ ipcrm -s <id>    # 手動移除
 #### 為什麼不用 pthread_mutex？
 在「同一個 process 內的 threads」保護共享變數，`pthread_mutex_t` 通常更輕量、語意更貼近。
 本作業使用 System V semaphore 主要是在練 OS IPC/同步機制：
-- 讓你熟悉 kernel-managed semaphore 與 `ipcs/ipcrm` 等工具
+- 以熟悉 kernel-managed semaphore 與 `ipcs/ipcrm` 等工具
 
 ### 5) Signal 與資源清理
 
@@ -308,7 +306,7 @@ sudo apt-get install tmux
 
 ## 限制與可改進點
 
-這份程式是 Lab 等級示範，功能刻意簡化，以下是比較「OS/網路程式設計」角度的可改進點：
+這份程式是針對特定OS觀念作練習，功能刻意簡化，以下是比較「OS/網路程式設計」角度的可改進點：
 
 - **client 寫入長度**：目前用 `write(..., BUFFER_SIZE)` 固定送 256 bytes（大多是 `\0`），可改成 `write(sock, sendBuf, strlen(sendBuf))`。
 - **TCP 的 partial read/write**：在真實網路上 `read()` / `write()` 可能只處理部分資料，應該設計 framing（例如以 `\n` 為分隔）並用迴圈收齊。
@@ -321,7 +319,7 @@ sudo apt-get install tmux
 
 ## 背景 / 來源
 
-本專案依據 `Lab 6 Web ATM.html`（HackMD 匯出）之規格完成，目標是練習：
+本專案依據嵌入式作業系統課程中實驗之規格完成，目標是練習：
 - Linux socket programming
 - 多執行緒併發
 - semaphore 同步與 race condition 處理
