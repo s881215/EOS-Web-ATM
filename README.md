@@ -27,7 +27,7 @@
 - [常見問題與除錯](#常見問題與除錯)
 - [限制與可改進點](#限制與可改進點)
 - [背景 / 來源](#背景--來源)
-- [server2.c（Process + Shared Memory 版本）](#server2.c--Process+Shared-Memory-版本)
+- [server2.c（Process + Shared Memory 版本）](#server2c-process--shared-memory-版本)
 
 ---
 
@@ -328,7 +328,7 @@ sudo apt-get install tmux
 - semaphore 同步與 race condition 處理
 
 ---
-## server2.c--Process+Shared-Memory-版本
+## server2.c (Process + Shared Memory 版本)
 
 `server2.c` 是同一個 ATM 題目的另一種經典 OS 作法，若要使用此 server2.c 請自行修改 Makefile：
 
