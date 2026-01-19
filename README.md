@@ -43,6 +43,7 @@
 ```
 .
 ├── server.c              # TCP server：accept 後 per-connection thread 處理
+├── server2.c             # TCP server：accept 後 fork() 出 child-process 並以 shared memory 進行同一ATM帳戶的存取
 ├── client.c              # TCP client：送出 deposit/withdraw amount times
 ├── Makefile              # 編譯 client/server
 └── demo.sh               # tmux demo：一次跑 server + 多 client 併發
